@@ -1,6 +1,7 @@
 #include "common.h"
 #include <coroutine>
 #include <cstdio>
+#include <iterator>
 #include <utility>
 #include <vector>
 using namespace std;
@@ -41,6 +42,18 @@ struct Generator {
       resume();
     return not finished();
   }
+  struct sentiel {};
+  struct iterator {
+    Handle mCtrl;
+    bool operator==(sentiel) const { return mCtrl.done(); }
+    iterator &operator++() {
+      mCtrl.resume();
+      return *this;
+    }
+    int operator*() const { return mCtrl.promise()._val; }
+  };
+  iterator begin() { return {mCtrl}; }
+  iterator end() { return {}; }
 };
 
 Generator interleave(vector<int> &a, vector<int> &b) {
@@ -56,8 +69,8 @@ int main(int argc, char *argv[]) {
   vector<int> a{2, 4, 6, 8};
   vector<int> b{3, 5, 7, 9};
   Generator g = interleave(a, b);
-  while (g) {
-    printf("%d\n", g.value());
+  for (const auto &e : g) {
+    printf("%d\n", e);
   }
   printf("exit while \n");
   return 0;
