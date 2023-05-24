@@ -43,9 +43,10 @@ struct Generator {
       resume();
     return not finished();
   }
+  struct sentinel_t {};
   struct iterator {
     Handle mCtrl;
-    bool operator==(std::default_sentinel_t) const { return mCtrl.done(); }
+    bool operator==(sentinel_t) const { return mCtrl.done(); }
     iterator &operator++() {
       mCtrl.resume();
       return *this;
@@ -57,7 +58,7 @@ struct Generator {
     mCtrl.resume();
     return {mCtrl};
   }
-  std::default_sentinel_t end() { return {}; }
+  sentinel_t end() { return {}; }
 };
 
 Generator interleave(vector<int> &a, vector<int> &b) {
@@ -76,6 +77,5 @@ int main(int argc, char *argv[]) {
   for (const auto &e : g) {
     printf("%d\n", e);
   }
-  printf("exit while \n");
   return 0;
 }
