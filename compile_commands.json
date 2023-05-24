@@ -1,1 +1,14 @@
-build/compile_commands.json
+[
+{
+  "directory": "/home/jz/coroutine_beginer",
+  "command": "/usr/bin/c++   -std=gnu++20 -o CMakeFiles/coroutine_chat.dir/coroutine_chat.cpp.o -c /home/jz/coroutine_beginer/coroutine_chat.cpp",
+  "file": "/home/jz/coroutine_beginer/coroutine_chat.cpp",
+  "output": "CMakeFiles/coroutine_chat.dir/coroutine_chat.cpp.o"
+},
+{
+  "directory": "/home/jz/coroutine_beginer",
+  "command": "/usr/bin/c++   -std=gnu++20 -o CMakeFiles/inter_vec.dir/inter_vec.cpp.o -c /home/jz/coroutine_beginer/inter_vec.cpp",
+  "file": "/home/jz/coroutine_beginer/inter_vec.cpp",
+  "output": "CMakeFiles/inter_vec.dir/inter_vec.cpp.o"
+}
+]

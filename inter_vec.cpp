@@ -1,4 +1,4 @@
-#define DEBUG
+/* #define DEBUG */
 #include "common.h"
 #include <coroutine>
 #include <cstdio>
@@ -24,11 +24,11 @@ struct Generator {
       _val = val;
       return {};
     }
-    // void return_value(int val) noexcept {
-    //   DEBUG_PRINTF("return_value\n");
-    //   _val = val;
-    //   /* value_out = std::move(s); */
-    // }
+    void return_value(int val) noexcept {
+      DEBUG_PRINTF("return_value\n");
+      _val = val;
+      /* value_out = std::move(s); */
+    }
     Generator get_return_object() noexcept {
       DEBUG_PRINTF("get_return_object\n");
       return Generator(this);
@@ -42,6 +42,7 @@ struct Generator {
     if (mCtrl)
       mCtrl.destroy();
   }
+  int value() { return mCtrl.promise()._val; }
   int operator()() {
     DEBUG_PRINTF("operator()\n");
     mCtrl.resume();
@@ -58,8 +59,16 @@ Generator interleave(vector<int> &a, vector<int> &b) {
   auto g1 = lamb(a);
   auto g2 = lamb(b);
   while (not g1.finished() and not g2.finished()) {
-    co_yield g1();
-    co_yield g2();
+    if (not g1.finished()) {
+      g1.mCtrl.resume();
+      if (not g1.finished())
+        co_yield g1.value();
+    }
+    if (not g2.finished()) {
+      g2.mCtrl.resume();
+      if (not g2.finished())
+        co_yield g2.value();
+    }
   }
 }
 
@@ -68,7 +77,9 @@ int main(int argc, char *argv[]) {
   vector<int> b{4, 5, 6};
   auto g = interleave(a, b);
   while (not g.finished()) {
-    cout << g() << endl;
+    g.mCtrl.resume();
+    if (not g.finished())
+      cout << g.value() << endl;
   }
 
   return 0;
