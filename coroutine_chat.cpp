@@ -1,16 +1,10 @@
+#include "common.h"
 #include <coroutine>
 #include <cstdio>
 #include <future>
 #include <iostream>
 #include <string>
 using namespace std;
-#ifndef DEBUG
-#define DEBUG_PRINTF(...)                                                      \
-  do {                                                                         \
-    fprintf(stderr, "%s:%d at %s\n", __FILE__, __LINE__, __func__);            \
-    fprintf(stderr, __VA_ARGS__);                                              \
-  } while (0)
-#endif // !DEBUG
 
 struct Chat {
   struct promise_type {
