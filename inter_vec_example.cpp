@@ -1,4 +1,5 @@
 #include "common.h"
+#include <bits/iterator_concepts.h>
 #include <coroutine>
 #include <cstdio>
 #include <iterator>
@@ -42,18 +43,21 @@ struct Generator {
       resume();
     return not finished();
   }
-  struct sentiel {};
   struct iterator {
     Handle mCtrl;
-    bool operator==(sentiel) const { return mCtrl.done(); }
+    bool operator==(std::default_sentinel_t) const { return mCtrl.done(); }
     iterator &operator++() {
       mCtrl.resume();
       return *this;
     }
     int operator*() const { return mCtrl.promise()._val; }
   };
-  iterator begin() { return {mCtrl}; }
-  iterator end() { return {}; }
+  iterator begin() {
+    // 开始运行，拿到第一个值
+    mCtrl.resume();
+    return {mCtrl};
+  }
+  std::default_sentinel_t end() { return {}; }
 };
 
 Generator interleave(vector<int> &a, vector<int> &b) {
