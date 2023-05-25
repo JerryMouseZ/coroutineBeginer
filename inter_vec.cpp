@@ -54,15 +54,13 @@ Generator interleave(vector<int> &a, vector<int> &b) {
   auto g1 = lamb(a);
   auto g2 = lamb(b);
   while (not g1.finished() and not g2.finished()) {
+    g1.mCtrl.resume();
     if (not g1.finished()) {
-      g1.mCtrl.resume();
-      if (not g1.finished())
-        co_yield g1.value();
+      co_yield g1.value();
     }
+    g2.mCtrl.resume();
     if (not g2.finished()) {
-      g2.mCtrl.resume();
-      if (not g2.finished())
-        co_yield g2.value();
+      co_yield g2.value();
     }
   }
 }

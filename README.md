@@ -224,4 +224,54 @@ int main(int argc, char *argv[]) {
 ```
 
 ## Scheduler
+我们想实现在两个协程之间互相调度。
+```C++
+void Use()
+{
+  Scheduler scheduler{};
+  taskA(scheduler);
+  taskB(scheduler);
+  while (scheduler.schedule()) {
+  }
+}
+Task taskA(Scheduler& sched)
+{
+  std::cout << "Hello, from task A\n";
+  co_await sched.suspend();
+  std::cout << "A is back doing work\n";
+  co_await sched.suspend();
+  std::cout << "A is back doing more work\n";
+}
 
+Task taskB(Scheduler& sched) {
+  std::cout << "Hello, from task B\n";
+  co_await sched.suspend();
+  std::cout << "B is back doing work\n";
+  co_await sched.suspend();
+  std::cout << "B is back doing more work\n";
+}
+```
+我们需要一个Scheduler类，完成协程的suspend和schedule的任务。suspend需要返回一个awaiter，awaiter中保存当前的scheduler，并在协程调用await_suspend的时候将当前协程的handler保存在对列的尾部。
+在schedule时，从队列的头部选择一个协程运行。
+```C++
+struct Scheduler {
+  list<coroutine_handle<>> coroutines;
+  bool schedule() {
+    auto task = coroutines.front();
+    coroutines.pop_front();
+    if (not task.done())
+      task.resume();
+    return not coroutines.empty();
+  }
+  auto suspend() {
+    struct awaiter : suspend_always {
+      Scheduler &sched;
+      explicit awaiter(Scheduler &sched) : sched(sched) {}
+      void await_suspend(coroutine_handle<> coro) {
+        sched.coroutines.push_back(coro);
+      }
+    };
+    return awaiter(*this);
+  }
+};
+```
