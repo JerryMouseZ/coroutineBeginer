@@ -1,3 +1,4 @@
+#define DEBUG
 #include "common.h"
 #include <coroutine>
 #include <cstdio>
@@ -58,14 +59,15 @@ struct Chat {
     }
   }
   string listen() {
+    DEBUG_PRINTF("listen\n");
     if (not mCtrl.done()) {
       mCtrl.resume();
     }
-    DEBUG_PRINTF("listen\n");
     return std::move(mCtrl.promise().value_out);
   }
 
   void answer(string msg) {
+    DEBUG_PRINTF("answer\n");
     mCtrl.promise().value_in = msg;
     if (not mCtrl.done()) {
       mCtrl.resume();
@@ -81,9 +83,8 @@ Chat Fun() {
 
 void Use() {
   Chat chat = Fun();
-  DEBUG_PRINTF("1\n");
   cout << chat.listen();
-  chat.answer("Where are you?\n");
+  chat.answer("Where are you?");
   cout << chat.listen();
 }
 
