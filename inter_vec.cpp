@@ -24,11 +24,6 @@ struct Generator {
       _val = val;
       return {};
     }
-    void return_value(int val) noexcept {
-      DEBUG_PRINTF("return_value\n");
-      _val = val;
-      /* value_out = std::move(s); */
-    }
     Generator get_return_object() noexcept {
       DEBUG_PRINTF("get_return_object\n");
       return Generator(this);

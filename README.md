@@ -111,3 +111,118 @@ Here
 
 在`answer`中我们给`value_in`赋值，并恢复协程的运行，在co_await处await_transform返回了一个awaiter对象，然后因为await_ready一直是true，所以协程没有挂起，继续执行。
 直到co_return处，调用了`return_value`传递返回值，并且调用final_suspend结束协程。最后的listen处因为协程已经结束，就拿出promise_type中的val返回
+
+关于co_await处的调度逻辑
+调用co_await时首先会调用`await_transform`生成awaiter对象，然后根据`awaiter_ready`的返回值，决定是否要将协程挂起。如果ready的值是false，协程将会被挂起。当协程被resume的时候，则会调用await_resume得到co_await的返回值。于是如果我们将await_ready改成return false，会得到下面的结果。
+```Bash
+/home/jz/coroutine_beginer/coroutine_chat.cpp:23 at get_return_object: get_return_object
+/home/jz/coroutine_beginer/coroutine_chat.cpp:15 at initial_suspend: init suspend
+/home/jz/coroutine_beginer/coroutine_chat.cpp:62 at listen: listen
+/home/jz/coroutine_beginer/coroutine_chat.cpp:27 at yield_value: yield_value
+Hello
+/home/jz/coroutine_beginer/coroutine_chat.cpp:70 at answer: answer
+/home/jz/coroutine_beginer/coroutine_chat.cpp:43 at await_transform: await_transform
+/home/jz/coroutine_beginer/coroutine_chat.cpp:40 at await_suspend: await_suspend
+/home/jz/coroutine_beginer/coroutine_chat.cpp:62 at listen: listen
+/home/jz/coroutine_beginer/coroutine_chat.cpp:36 at await_resume: await_resume
+Where are you?
+/home/jz/coroutine_beginer/coroutine_chat.cpp:47 at return_value: return_value
+/home/jz/coroutine_beginer/coroutine_chat.cpp:19 at final_suspend: final_suspend
+Here
+```
+可以看到await_transform之后调用了await_suspend，然后协程挂起，直到listen中调用了resume，协程才开始恢复执行。
+
+## Interleave
+在这个示例中，我们想用两个协程交替输出两个数组的值。
+```
+Generator interleave(vector<int> &a, vector<int> &b) {
+  auto lamb = [](std::vector<int> &v) -> Generator {
+    for (const auto &e : v)
+      co_yield e;
+  };
+  auto g1 = lamb(a);
+  auto g2 = lamb(b);
+  while (not g1.finished() and not g2.finished()) {
+    if (not g1.finished()) {
+      g1.mCtrl.resume();
+      if (not g1.finished())
+        co_yield g1.value();
+    }
+    if (not g2.finished()) {
+      g2.mCtrl.resume();
+      if (not g2.finished())
+        co_yield g2.value();
+    }
+  }
+}
+```
+这个协程用到了co_yield，因此需要实现promise_type::yield_value。那么协程类大概就是如下所示。并且协程会在结束的时候添加一个默认的`co_return`，因此我们还需要提供一个`promise_type::return_void()`的实现
+```
+struct Generator {
+  struct promise_type {
+    int _val{};
+    Generator get_return_object() { return Generator{this}; }
+    suspend_always initial_suspend() noexcept { return {}; }
+    suspend_always final_suspend() noexcept { return {}; }
+    suspend_always yield_value(int val) noexcept {
+      _val = val;
+      return {};
+    }
+    void unhandled_exception() {}
+    void return_void() {}
+  };
+
+  using Handle = coroutine_handle<promise_type>;
+  Handle mCtrl;
+
+  explicit Generator(promise_type *p) : mCtrl(Handle::from_promise(*p)) {}
+  Generator(Generator &&rhs) : mCtrl(rhs.mCtrl) { rhs.mCtrl = {}; }
+  ~Generator() {
+    if (mCtrl) {
+      mCtrl.destroy();
+    }
+  }
+
+  int value() const { return mCtrl.promise()._val; }
+  bool finished() const { return mCtrl.done(); }
+  void resume() { mCtrl.resume(); }
+} 
+```
+需要注意的地方是，最后一次co_yield之后，协程并没有结束！所以resume之后还需要判断一下协程是否结束，如果已经结束了就不要再输出值了，否则会造成重复的输出。
+
+如果我们想要用for range的方法来遍历生成器的所有值，我们需要实现一个Iter类，以及begin和end方法
+```C++
+// struct Generator {
+  struct sentinel_t {};
+  struct iterator {
+    Handle mCtrl;
+    bool operator==(sentinel_t) const { return mCtrl.done(); }
+    iterator &operator++() {
+      mCtrl.resume();
+      return *this;
+    }
+    int operator*() const { return mCtrl.promise()._val; }
+  };
+  iterator begin() {
+    // 开始运行，拿到第一个值
+    mCtrl.resume();
+    return {mCtrl};
+  }
+  sentinel_t end() { return {}; }
+// };
+```
+然后我们就能用for-range的形式遍历协程的生成值了。
+```C++
+int main(int argc, char *argv[]) {
+  vector<int> a{2, 4, 6, 8};
+  vector<int> b{3, 5, 7, 9};
+  Generator g = interleave(a, b);
+  for (const auto &e : g) {
+    printf("%d\n", e);
+  }
+  return 0;
+}
+```
+
+## Scheduler
+

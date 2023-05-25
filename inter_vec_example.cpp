@@ -34,15 +34,15 @@ struct Generator {
   int value() const { return mCtrl.promise()._val; }
   bool finished() const { return mCtrl.done(); }
   void resume() { mCtrl.resume(); }
-  int operator()() {
-    mCtrl.resume();
-    return mCtrl.promise()._val;
-  }
-  operator bool() {
-    if (not finished())
-      resume();
-    return not finished();
-  }
+  /* int operator()() { */
+  /*   mCtrl.resume(); */
+  /*   return mCtrl.promise()._val; */
+  /* } */
+  /* operator bool() { */
+  /*   if (not finished()) */
+  /*     resume(); */
+  /*   return not finished(); */
+  /* } */
   struct sentinel_t {};
   struct iterator {
     Handle mCtrl;
