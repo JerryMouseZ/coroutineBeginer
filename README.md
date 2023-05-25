@@ -136,27 +136,27 @@ Here
 在这个示例中，我们想用两个协程交替输出两个数组的值。
 ```
 Generator interleave(vector<int> &a, vector<int> &b) {
-  auto lamb = [](std::vector<int> &v) -> Generator {
-    for (const auto &e : v)
+  auto lamb = [](const vector<int> &v) -> Generator {
+    for (const auto &e : v) {
       co_yield e;
-  };
-  auto g1 = lamb(a);
-  auto g2 = lamb(b);
-  while (not g1.finished() and not g2.finished()) {
-    if (not g1.finished()) {
-      g1.mCtrl.resume();
-      if (not g1.finished())
-        co_yield g1.value();
     }
+  };
+  Generator g1 = lamb(a);
+  Generator g2 = lamb(b);
+  while (not g1.finished() && not g2.finished()) {
+    g1.resume();
+    if (not g1.finished()) {
+      co_yield g1.value();
+    }
+    g2.resume();
     if (not g2.finished()) {
-      g2.mCtrl.resume();
-      if (not g2.finished())
-        co_yield g2.value();
+      co_yield g2.value();
     }
   }
 }
 ```
-这个协程用到了co_yield，因此需要实现promise_type::yield_value。那么协程类大概就是如下所示。并且协程会在结束的时候添加一个默认的`co_return`，因此我们还需要提供一个`promise_type::return_void()`的实现
+
+这个协程用到了co_yield，因此需要实现promise_type::yield_value。那么协程类大概就是如下所示。
 ```
 struct Generator {
   struct promise_type {
@@ -169,7 +169,6 @@ struct Generator {
       return {};
     }
     void unhandled_exception() {}
-    void return_void() {}
   };
 
   using Handle = coroutine_handle<promise_type>;

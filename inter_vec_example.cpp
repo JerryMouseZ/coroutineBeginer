@@ -17,7 +17,7 @@ struct Generator {
       return {};
     }
     void unhandled_exception() {}
-    void return_void() {}
+    /* void return_void() {} */
   };
 
   using Handle = coroutine_handle<promise_type>;
@@ -62,12 +62,23 @@ struct Generator {
 };
 
 Generator interleave(vector<int> &a, vector<int> &b) {
-  // create
-  for (int i = 0; i < a.size(); ++i) {
-    co_yield a[i];
-    co_yield b[i];
+  auto lamb = [](const vector<int> &v) -> Generator {
+    for (const auto &e : v) {
+      co_yield e;
+    }
+  };
+  Generator g1 = lamb(a);
+  Generator g2 = lamb(b);
+  while (not g1.finished() && not g2.finished()) {
+    g1.resume();
+    if (not g1.finished()) {
+      co_yield g1.value();
+    }
+    g2.resume();
+    if (not g2.finished()) {
+      co_yield g2.value();
+    }
   }
-  co_return;
 }
 
 int main(int argc, char *argv[]) {
